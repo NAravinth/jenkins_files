@@ -1,0 +1,36 @@
+pipeline {
+    
+    agent { label 'master' }
+    stages {
+	   
+        stage ('Checkout') {
+          steps {
+            git 'https://github.com/prakashldevops/addressbook_slave.git'
+          }
+        }
+        stage('Build') {
+            
+             steps {
+               
+               sh '/opt/apache-maven-3.5.3/bin/mvn clean package'
+                junit '**/target/surefire-reports/TEST-*.xml'
+	  archiveArtifacts artifacts: '**/target/*.war', fingerprint: true
+	    }
+        }
+        stage('Docker image') {
+            agent { label 'slave' }
+            steps {
+                git 'https://github.com/prakashldevops/addressbook_slave.git'
+                sh 'docker build -t prakash/addressbook$(git rev-parse HEAD):latest .'
+            }
+    }
+        stage('Docker Deploy') {
+	agent { label 'slave' }
+      steps {
+          
+          sh 'docker run -itd -P prakash/addressbook$(git rev-parse HEAD):latest'
+        }
+      }
+    
+    }
+}
